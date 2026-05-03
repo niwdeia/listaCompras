@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GastroCost - Arquitectura Core V3.1</title>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <style>
+        :root { 
+            --primary: #10b981; --accent: #6366f1; --bg: #f8fafc; 
+            --text: #1e293b; --danger: #ef4444; --card-border: #e2e8f0;
+        }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 90px; }
+        header { background: white; padding: 1rem; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 50; }
+        .container { width: 95%; max-width: 500px; margin: auto; padding: 20px 0; }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid var(--card-border); }
+        
+        .app-view { display: none; }
+        .app-view.active { display: block; animation: fadeIn 0.2s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        nav { position: fixed; bottom: 0; width: 100%; background: rgba(255, 255, 255, 0.98); display: flex; justify-content: space-around; padding: 12px 0; border-top: 1px solid #e2e8f0; z-index: 100; }
+        .nav-btn { background: none; border: none; font-size: 0.7rem; font-weight: 700; color: #64748b; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .nav-btn.active { color: var(--primary); }
+
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.7rem; font-weight: 800; color: #475569; margin-bottom: 5px; text-transform: uppercase; }
+        .help-text { font-size: 0.75rem; color: #64748b; margin-top: 5px; font-style: italic; display: block; }
+        
+        input, select, textarea { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 1rem; outline: none; box-sizing: border-box; }
+        input:focus, select:focus { border-color: var(--primary); }
+        
+        .btn-main { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; width: 100%; cursor: pointer; margin-top: 10px; }
+        .shop-row { border-bottom: 1px solid #f1f5f9; padding: 12px 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 style="margin:0; font-size: 1.4rem; color: var(--primary);">GastroCost</h1>
+    <div id="db-status" style="font-size: 0.6rem; color: #94a3b8;">Estado: Conectando...</div>
+</header>
+
+<div class="container">
+    
+    <!-- VISTA 1: CATÁLOGO (RUI con Ayuda Nutricional) -->
+    <section id="view-items" class="app-view active">
+        <div class="card">
+            <h2>🛒 Nuevo Ingrediente</h2>
+            <form id="form-ingrediente">
+                <div class="input-group">
+                    <label>Nombre del Ítem</label>
+                    <input type="text" id="ing-name" placeholder="Ej: Espinaca" required>
+                </div>
+                <div class="input-group">
+                    <label>Categoría Nutricional</label>
+                    <select id="ing-category" onchange="updateCategoryHelp()">
+                        <option value="verduras" data-help="Espinacas, zanahoria, manzana, cítricos.">🥦 Verduras y Frutas</option>
+                        <option value="cereales" data-help="Arroz, avena, maíz, papa, pan integral.">🍞 Cereales y Tubérculos</option>
+                        <option value="leguminosas" data-help="Frijoles, lentejas, garbanzos, habas.">🫘 Leguminosas</option>
+                        <option value="animal" data-help="Huevo, pescado, pollo, carne de res.">🍗 Origen Animal</option>
+                        <option value="lacteos" data-help="Leche, yogur, quesos.">🧀 Lácteos</option>
+                        <option value="grasas" data-help="Aguacate, aceite de oliva, nueces.">🥑 Grasas Saludables</option>
+                    </select>
+                    <span id="category-help" class="help-text">Ejemplos: Espinacas, zanahoria, manzana...</span>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="input-group"><label>Unidad</label><select id="ing-unit"><option>libras</option><option>gramos</option><option>unidades</option><option>litros</option></select></div>
+                    <div class="input-group"><label>Kcal</label><input type="number" id="ing-kcal" value="0"></div>
+                </div>
+                <button type="submit" class="btn-main">Guardar Ítem</button>
+            </form>
+        </div>
+        <div id="lista-ingredientes"></div>
+    </section>
+
+    <!-- VISTA 2: RECETARIO -->
+    <section id="view-recipes" class="app-view">
+        <div class="card">
+            <h2>👨‍🍳 Crear Receta</h2>
+            <form id="form-receta">
+                <div class="input-group"><label>Título</label><input type="text" id="rec-title" required></div>
+                <div class="input-group"><label>Personas</label><input type="number" id="rec-servings" value="1" min="1"></div>
+                <div class="input-group" style="background:#f1f5f9; padding:12px; border-radius:10px;">
+                    <label>Añadir Ingrediente</label>
+                    <div style="display:flex; gap:8px;">
+                        <select id="rec-sel-ing" style="flex:2;"></select>
+                        <input type="number" id="rec-sel-qty" placeholder="Cant." style="flex:1;">
+                        <button type="button" onclick="addIngToRecipe()" style="background:var(--accent); color:white; border:none; padding:0 15px; border-radius:8px; cursor:pointer;">+</button>
+                    </div>
+                    <div id="recipe-temp-list" style="margin-top:10px; font-size:0.85rem;"></div>
+                </div>
+                <button type="submit" class="btn-main" style="background:var(--accent);">Guardar Receta</button>
+            </form>
+        </div>
+        <div id="lista-recetas"></div>
+    </section>
+
+    <!-- VISTA 3: COMPRAS -->
+    <section id="view-compras" class="app-view">
+        <div class="card">
+            <h2>📝 Planificar Compras</h2>
+            <div id="selector-compras" style="margin-bottom:15px;"></div>
+            <button onclick="generarListaSuper()" class="btn-main" style="background:#475569;">Generar Lista Consolidada</button>
+        </div>
+        <div id="lista-supermercado"></div>
+    </section>
+
+</div>
+
+<nav>
+    <button onclick="show('view-items')" class="nav-btn active" id="btn-view-items"><span>🛒</span>Ítems</button>
+    <button onclick="show('view-recipes')" class="nav-btn" id="btn-view-recipes"><span>👨‍🍳</span>Recetas</button>
+    <button onclick="show('view-compras')" class="nav-btn" id="btn-view-compras"><span>📝</span>Compras</button>
+</nav>
+
+<script>
+    const db = new Dexie("GastroCost_V3_Final");
+    db.version(1).stores({
+        ingredients: "uid, name, category, unit",
+        recipes: "++id, title",
+        meta: "uid"
+    });
+
+    let tempIngs = [];
+
+    function show(viewId) {
+        document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        document.getElementById('btn-' + viewId)?.classList.add('active');
+        if(viewId === 'view-recipes') populateIngredientSelect();
+        if(viewId === 'view-compras') populateRecipeSelect();
+        renderLists();
+    }
+
+    // --- RUI LOGIC ---
+    function updateCategoryHelp() {
+        const select = document.getElementById('ing-category');
+        const help = select.options[select.selectedIndex].getAttribute('data-help');
+        document.getElementById('category-help').textContent = `Ejemplos: ${help}`;
+    }
+
+    document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('ing-name').value.trim();
+        const unit = document.getElementById('ing-unit').value;
+        const uid = `${name.toLowerCase().replace(/\s+/g, '_')}_${unit}`;
+        await db.ingredients.put({
+            uid, name, unit,
+            category: document.getElementById('ing-category').value,
+            kcal: document.getElementById('ing-kcal').value
+        });
+        e.target.reset(); updateCategoryHelp(); renderLists();
+    });
+
+    // --- RECIPE LOGIC ---
+    async function populateIngredientSelect() {
+        const ings = await db.ingredients.toArray();
+        document.getElementById('rec-sel-ing').innerHTML = ings.map(i => `<option value="${i.uid}">${i.name} (${i.unit})</option>`).join('');
+    }
+
+    function addIngToRecipe() {
+        const sel = document.getElementById('rec-sel-ing');
+        const qty = document.getElementById('rec-sel-qty').value;
+        if(!qty || qty <= 0) return;
+        tempIngs.push({ uid: sel.value, name: sel.options[sel.selectedIndex].text, qty: parseFloat(qty) });
+        renderTemp();
+    }
+
+    function renderTemp() {
+        document.getElementById('recipe-temp-list').innerHTML = tempIngs.map((i, idx) => `
+            <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #e2e8f0;">
+                <span>${i.name} x ${i.qty}</span>
+                <span onclick="tempIngs.splice(${idx},1);renderTemp()" style="color:var(--danger); cursor:pointer; font-weight:bold;">✕</span>
+            </div>
+        `).join('');
+    }
+
+    document.getElementById('form-receta').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if(tempIngs.length === 0) return alert("Añade ingredientes");
+        await db.recipes.add({
+            title: document.getElementById('rec-title').value,
+            servings: document.getElementById('rec-servings').value,
+            ingredients: [...tempIngs]
+        });
+        tempIngs = []; e.target.reset(); renderTemp(); renderLists();
+    });
+
+    // --- SHOPPING LOGIC ---
+    async function populateRecipeSelect() {
+        const recs = await db.recipes.toArray();
+        document.getElementById('selector-compras').innerHTML = recs.map(r => `
+            <label style="display:block; margin-bottom:10px; font-size:0.9rem;">
+                <input type="checkbox" value="${r.id}" class="recipe-check"> ${r.title}
+            </label>
+        `).join('');
+    }
+
+    async function generarListaSuper() {
+        const selectedIds = Array.from(document.querySelectorAll('.recipe-check:checked')).map(cb => parseInt(cb.value));
+        if(selectedIds.length === 0) return alert("Selecciona al menos una receta.");
+
+        const recs = await db.recipes.where('id').anyOf(selectedIds).toArray();
+        const consolidado = {};
+
+        recs.forEach(r => {
+            r.ingredients.forEach(i => {
+                if(!consolidado[i.uid]) consolidado[i.uid] = { name: i.name, qty: 0 };
+                consolidado[i.uid].qty += i.qty;
+            });
+        });
+
+        let html = `<div class="card"><h3>Lista Consolidada</h3>`;
+        for(const uid in consolidado) {
+            const meta = await db.meta.get(uid);
+            html += `
+                <div class="shop-row">
+                    <div style="display:flex; justify-content:space-between;"><b>${consolidado[uid].name}</b> <span>Total: ${consolidado[uid].qty}</span></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                        <label style="font-size:0.8rem; display:flex; align-items:center; gap:5px;"><input type="checkbox"> Comprado</label>
+                        <input type="number" placeholder="Precio $" style="width:100px; padding:6px; text-align:right; border-radius:5px; border:1px solid #e2e8f0;" 
+                               value="${meta?.lastPrice || ''}" onchange="savePrice('${uid}', this.value)">
+                    </div>
+                </div>`;
+        }
+        document.getElementById('lista-supermercado').innerHTML = html + `</div>`;
+    }
+
+    async function savePrice(uid, price) {
+        await db.meta.put({ uid, lastPrice: parseFloat(price) });
+    }
+
+    async function renderLists() {
+        const ings = await db.ingredients.toArray();
+        document.getElementById('lista-ingredientes').innerHTML = ings.map(i => `
+            <div class="card" style="padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                <div><small style="text-transform:uppercase; font-size:0.6rem; font-weight:bold; color:var(--primary);">${i.category}</small><br><b>${i.name}</b></div>
+                <button onclick="deleteIng('${i.uid}')" style="background:none; border:none; color:var(--danger); cursor:pointer;">Borrar</button>
+            </div>
+        `).join('');
+
+        const recs = await db.recipes.toArray();
+        document.getElementById('lista-recetas').innerHTML = recs.map(r => `
+            <div class="card" style="padding:12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                <b>${r.title}</b>
+                <button onclick="deleteRec(${r.id})" style="background:none; border:none; color:var(--danger); cursor:pointer;">Borrar</button>
+            </div>
+        `).join('');
+
+        document.getElementById('db-status').textContent = `Estado: OK (${ings.length} Ítems / ${recs.length} Recetas)`;
+    }
+
+    async function deleteIng(uid) { if(confirm("¿Borrar?")) { await db.ingredients.delete(uid); renderLists(); } }
+    async function deleteRec(id) { if(confirm("¿Borrar?")) { await db.recipes.delete(id); renderLists(); } }
+
+    renderLists();
+</script>
+</body>
+</html>
