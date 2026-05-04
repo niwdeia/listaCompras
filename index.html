@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GastroCost - Navigation Drawer V3.2</title>
+    <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
+    <style>
+        :root { 
+            --primary: #10b981; --accent: #6366f1; --bg: #f8fafc; 
+            --text: #1e293b; --danger: #ef4444; --drawer-w: 280px;
+        }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow-x: hidden; }
+        
+        /* HEADER CON HAMBURGUESA */
+        header { 
+            background: white; padding: 1rem; display: flex; align-items: center; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 50; 
+        }
+        .menu-btn { 
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; 
+            margin-right: 15px; padding: 5px; color: var(--text);
+        }
+
+        /* NAVIGATION DRAWER (Menú Lateral) */
+        #drawer {
+            position: fixed; top: 0; left: calc(-1 * var(--drawer-w)); 
+            width: var(--drawer-w); height: 100%; background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1); transition: 0.3s ease; z-index: 100;
+            padding: 20px; box-sizing: border-box;
+        }
+        #drawer.open { left: 0; }
+        
+        /* BACKDROP (Fondo Oscuro) */
+        #backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); display: none; z-index: 90;
+        }
+        #backdrop.active { display: block; }
+
+        /* ESTILOS DEL MENÚ */
+        .drawer-header { border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; padding-bottom: 10px; }
+        .nav-item { 
+            display: block; width: 100%; padding: 12px; margin-bottom: 5px;
+            border-radius: 8px; text-align: left; background: none; border: none;
+            font-size: 1rem; font-weight: 600; color: #64748b; cursor: pointer;
+        }
+        .nav-item:hover, .nav-item.active { background: #f1f5f9; color: var(--primary); }
+
+        /* CONTENEDOR PRINCIPAL */
+        .container { width: 95%; max-width: 500px; margin: auto; padding: 20px 0; }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        
+        .app-view { display: none; }
+        .app-view.active { display: block; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* INPUTS Y BOTONES */
+        .input-group { margin-bottom: 1rem; }
+        label { display: block; font-size: 0.7rem; font-weight: 800; color: #475569; margin-bottom: 5px; text-transform: uppercase; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 1rem; outline: none; box-sizing: border-box; }
+        .btn-main { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 700; width: 100%; cursor: pointer; margin-top: 10px; }
+        .help-text { font-size: 0.75rem; color: #64748b; margin-top: 5px; font-style: italic; }
+        .shop-row { border-bottom: 1px solid #f1f5f9; padding: 12px 0; }
+    </style>
+</head>
+<body>
+
+<div id="backdrop" onclick="toggleMenu()"></div>
+
+<header>
+    <button class="menu-btn" onclick="toggleMenu()">☰</button>
+    <h1 style="margin:0; font-size: 1.2rem; color: var(--primary);">GastroCost</h1>
+</header>
+
+<!-- NAVIGATION DRAWER -->
+<aside id="drawer">
+    <div class="drawer-header">
+        <h2 style="margin:0; color: var(--primary);">Menú Principal</h2>
+        <p style="font-size: 0.7rem; color: #94a3b8;" id="db-status">Sincronizando...</p>
+    </div>
+    <button class="nav-item active" id="nav-view-items" onclick="router('view-items')">🛒 Catálogo de Ítems</button>
+    <button class="nav-item" id="nav-view-recipes" onclick="router('view-recipes')">👨‍🍳 Mis Recetas</button>
+    <button class="nav-item" id="nav-view-compras" onclick="router('view-compras')">📝 Lista de Compras</button>
+</aside>
+
+<div class="container">
+    
+    <!-- VISTA 1: CATÁLOGO -->
+    <section id="view-items" class="app-view active">
+        <div class="card">
+            <h2>Nuevo Ingrediente</h2>
+            <form id="form-ingrediente">
+                <div class="input-group"><label>Nombre</label><input type="text" id="ing-name" required></div>
+                <div class="input-group">
+                    <label>Categoría Nutricional</label>
+                    <select id="ing-category" onchange="updateHelp()">
+                        <option value="verduras" data-help="Espinacas, zanahoria, manzana.">🥦 Verduras y Frutas</option>
+                        <option value="cereales" data-help="Arroz, maíz, papa, pan.">🍞 Cereales y Tubérculos</option>
+                        <option value="leguminosas" data-help="Frijoles, lentejas, garbanzos.">🫘 Leguminosas</option>
+                        <option value="animal" data-help="Huevo, pollo, carne de res.">🍗 Origen Animal</option>
+                        <option value="lacteos" data-help="Leche, yogur, quesos.">🧀 Lácteos</option>
+                        <option value="grasas" data-help="Aguacate, aceite de oliva.">🥑 Grasas Saludables</option>
+                    </select>
+                    <span id="help-cat" class="help-text">Ejemplos: Espinacas, zanahoria...</span>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div class="input-group"><label>Unidad</label><select id="ing-unit"><option>libras</option><option>gramos</option><option>unidades</option></select></div>
+                    <div class="input-group"><label>Kcal</label><input type="number" id="ing-kcal" value="0"></div>
+                </div>
+                <button type="submit" class="btn-main">Guardar en Catálogo</button>
+            </form>
+        </div>
+        <div id="lista-ingredientes"></div>
+    </section>
+
+    <!-- VISTA 2: RECETARIO -->
+    <section id="view-recipes" class="app-view">
+        <div class="card">
+            <h2>Nueva Receta</h2>
+            <form id="form-receta">
+                <div class="input-group"><label>Título</label><input type="text" id="rec-title" required></div>
+                <div class="input-group"><label>Porciones</label><input type="number" id="rec-servings" value="1" min="1"></div>
+                <div class="input-group" style="background:#f1f5f9; padding:12px; border-radius:10px;">
+                    <label>Añadir Ingredientes</label>
+                    <div style="display:flex; gap:8px;">
+                        <select id="rec-sel-ing" style="flex:2;"></select>
+                        <input type="number" id="rec-sel-qty" placeholder="Cant." style="flex:1;">
+                        <button type="button" onclick="addIng()" style="background:var(--accent); color:white; border:none; padding:0 15px; border-radius:8px;">+</button>
+                    </div>
+                    <div id="temp-list" style="margin-top:10px; font-size:0.85rem;"></div>
+                </div>
+                <button type="submit" class="btn-main" style="background:var(--accent);">Guardar Receta</button>
+            </form>
+        </div>
+        <div id="lista-recetas"></div>
+    </section>
+
+    <!-- VISTA 3: COMPRAS -->
+    <section id="view-compras" class="app-view">
+        <div class="card">
+            <h2>Planificar Compras</h2>
+            <div id="selector-compras" style="margin-bottom:15px;"></div>
+            <button onclick="generarCompra()" class="btn-main" style="background:#475569;">Ver Lista de Súper</button>
+        </div>
+        <div id="lista-super"></div>
+    </section>
+
+</div>
+
+<script>
+    const db = new Dexie("GastroCost_V3_2");
+    db.version(1).stores({ ingredients: "uid, name, category, unit", recipes: "++id, title", meta: "uid" });
+
+    let tempIngs = [];
+
+    // LÓGICA DE MENÚ (Drawer)
+    function toggleMenu() {
+        document.getElementById('drawer').classList.toggle('open');
+        document.getElementById('backdrop').classList.toggle('active');
+    }
+
+    function router(viewId) {
+        document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        document.getElementById('nav-' + viewId).classList.add('active');
+        
+        if(viewId === 'view-recipes') populateIngs();
+        if(viewId === 'view-compras') populateRecs();
+        
+        toggleMenu(); // Cerrar menú tras elegir
+        render();
+    }
+
+    // RUI Y AYUDA
+    function updateHelp() {
+        const sel = document.getElementById('ing-category');
+        document.getElementById('help-cat').textContent = "Ejemplos: " + sel.options[sel.selectedIndex].getAttribute('data-help');
+    }
+
+    document.getElementById('form-ingrediente').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('ing-name').value;
+        const unit = document.getElementById('ing-unit').value;
+        await db.ingredients.put({
+            uid: `${name.toLowerCase().replace(/\s+/g,'_')}_${unit}`,
+            name, unit,
+            category: document.getElementById('ing-category').value,
+            kcal: document.getElementById('ing-kcal').value
+        });
+        e.target.reset(); updateHelp(); render();
+    });
+
+    // RECETAS
+    async function populateIngs() {
+        const ings = await db.ingredients.toArray();
+        document.getElementById('rec-sel-ing').innerHTML = ings.map(i => `<option value="${i.uid}">${i.name} (${i.unit})</option>`).join('');
+    }
+
+    function addIng() {
+        const sel = document.getElementById('rec-sel-ing');
+        const qty = document.getElementById('rec-sel-qty').value;
+        if(!qty) return;
+        tempIngs.push({ uid: sel.value, name: sel.options[sel.selectedIndex].text, qty: parseFloat(qty) });
+        renderTemp();
+    }
+
+    function renderTemp() {
+        document.getElementById('temp-list').innerHTML = tempIngs.map((i,idx) => `<div style="display:flex; justify-content:space-between; margin-top:5px;"><span>${i.name} x ${i.qty}</span> <b onclick="tempIngs.splice(${idx},1);renderTemp()" style="color:var(--danger); cursor:pointer;">✕</b></div>`).join('');
+    }
+
+    document.getElementById('form-receta').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if(tempIngs.length === 0) return alert("Añade ítems");
+        await db.recipes.add({ title: document.getElementById('rec-title').value, servings: document.getElementById('rec-servings').value, ingredients: [...tempIngs] });
+        tempIngs = []; e.target.reset(); renderTemp(); render();
+    });
+
+    // COMPRAS
+    async function populateRecs() {
+        const recs = await db.recipes.toArray();
+        document.getElementById('selector-compras').innerHTML = recs.map(r => `<label style="display:block; margin-bottom:8px;"><input type="checkbox" value="${r.id}" class="r-check"> ${r.title}</label>`).join('');
+    }
+
+    async function generarCompra() {
+        const ids = Array.from(document.querySelectorAll('.r-check:checked')).map(c => parseInt(c.value));
+        const recs = await db.recipes.where('id').anyOf(ids).toArray();
+        const cons = {};
+        recs.forEach(r => r.ingredients.forEach(i => { if(!cons[i.uid]) cons[i.uid] = { n: i.name, q: 0 }; cons[i.uid].q += i.qty; }));
+        
+        let h = `<div class="card"><h3>Lista de Súper</h3>`;
+        for(const u in cons) {
+            const m = await db.meta.get(u);
+            h += `<div class="shop-row">
+                    <div style="display:flex; justify-content:space-between;"><b>${cons[u].n}</b> <span>${cons[u].q}</span></div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                        <label style="font-size:0.7rem;"><input type="checkbox"> Comprado</label>
+                        <input type="number" value="${m?.price || ''}" placeholder="$" onchange="db.meta.put({uid:'${u}', price:parseFloat(this.value)})" style="width:70px; padding:5px;">
+                    </div>
+                  </div>`;
+        }
+        document.getElementById('lista-super').innerHTML = h + `</div>`;
+    }
+
+    async function render() {
+        const ings = await db.ingredients.toArray();
+        document.getElementById('lista-ingredientes').innerHTML = ings.map(i => `<div class="card" style="padding:10px; margin-bottom:8px; display:flex; justify-content:space-between;"><span><b>${i.name}</b> (${i.unit})</span> <button onclick="db.ingredients.delete('${i.uid}').then(render)" style="background:none; border:none; color:var(--danger);">✕</button></div>`).join('');
+        const recs = await db.recipes.toArray();
+        document.getElementById('lista-recetas').innerHTML = recs.map(r => `<div class="card" style="padding:10px; margin-bottom:8px; display:flex; justify-content:space-between;"><span><b>${r.title}</b></span> <button onclick="db.recipes.delete(${r.id}).then(render)" style="background:none; border:none; color:var(--danger);">✕</button></div>`).join('');
+        document.getElementById('db-status').textContent = `${ings.length} Ítems / ${recs.length} Recetas`;
+    }
+
+    updateHelp();
+    render();
+</script>
+</body>
+</html>
