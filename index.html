@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GastroCost - Navigation Drawer V3.2</title>
+    <title>GastroCost - Dashboard V4.0</title>
     <script src="https://unpkg.com/dexie/dist/dexie.js"></script>
     <style>
         :root { 
@@ -12,17 +12,14 @@
         }
         body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; overflow-x: hidden; }
         
-        /* HEADER CON HAMBURGUESA */
+        /* HEADER */
         header { 
             background: white; padding: 1rem; display: flex; align-items: center; 
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 50; 
         }
-        .menu-btn { 
-            background: none; border: none; font-size: 1.5rem; cursor: pointer; 
-            margin-right: 15px; padding: 5px; color: var(--text);
-        }
+        .menu-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; margin-right: 15px; color: var(--text); }
 
-        /* NAVIGATION DRAWER (Menú Lateral) */
+        /* NAVIGATION DRAWER */
         #drawer {
             position: fixed; top: 0; left: calc(-1 * var(--drawer-w)); 
             width: var(--drawer-w); height: 100%; background: white;
@@ -30,32 +27,36 @@
             padding: 20px; box-sizing: border-box;
         }
         #drawer.open { left: 0; }
-        
-        /* BACKDROP (Fondo Oscuro) */
         #backdrop {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); display: none; z-index: 90;
         }
         #backdrop.active { display: block; }
-
-        /* ESTILOS DEL MENÚ */
-        .drawer-header { border-bottom: 1px solid #e2e8f0; margin-bottom: 20px; padding-bottom: 10px; }
         .nav-item { 
-            display: block; width: 100%; padding: 12px; margin-bottom: 5px;
-            border-radius: 8px; text-align: left; background: none; border: none;
+            display: block; width: 100%; padding: 15px; margin-bottom: 5px;
+            border-radius: 12px; text-align: left; background: none; border: none;
             font-size: 1rem; font-weight: 600; color: #64748b; cursor: pointer;
         }
-        .nav-item:hover, .nav-item.active { background: #f1f5f9; color: var(--primary); }
+        .nav-item.active { background: #ecfdf5; color: var(--primary); }
 
-        /* CONTENEDOR PRINCIPAL */
-        .container { width: 95%; max-width: 500px; margin: auto; padding: 20px 0; }
-        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        /* DASHBOARD ESPECÍFICO */
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 16px; text-align: center; border: 1px solid #e2e8f0; }
+        .stat-num { font-size: 1.5rem; font-weight: 800; color: var(--primary); display: block; }
+        .stat-label { font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; font-weight: bold; }
         
-        .app-view { display: none; }
-        .app-view.active { display: block; animation: fadeIn 0.2s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .quick-action { 
+            display: flex; align-items: center; gap: 15px; background: white; 
+            padding: 15px; border-radius: 16px; margin-bottom: 10px; 
+            text-decoration: none; color: inherit; border: 1px solid #e2e8f0; cursor: pointer;
+            width: 100%; text-align: left;
+        }
 
-        /* INPUTS Y BOTONES */
+        /* COMUNES */
+        .container { width: 95%; max-width: 500px; margin: auto; padding: 20px 0; }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .app-view { display: none; }
+        .app-view.active { display: block; }
         .input-group { margin-bottom: 1rem; }
         label { display: block; font-size: 0.7rem; font-weight: 800; color: #475569; margin-bottom: 5px; text-transform: uppercase; }
         input, select, textarea { width: 100%; padding: 12px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 1rem; outline: none; box-sizing: border-box; }
@@ -73,21 +74,64 @@
     <h1 style="margin:0; font-size: 1.2rem; color: var(--primary);">GastroCost</h1>
 </header>
 
-<!-- NAVIGATION DRAWER -->
 <aside id="drawer">
-    <div class="drawer-header">
-        <h2 style="margin:0; color: var(--primary);">Menú Principal</h2>
-        <p style="font-size: 0.7rem; color: #94a3b8;" id="db-status">Sincronizando...</p>
+    <div style="margin-bottom:30px;">
+        <h2 style="margin:0; color: var(--primary);">GastroCost</h2>
+        <p style="font-size: 0.7rem; color: #94a3b8;">Arquitectura Local V4.0</p>
     </div>
-    <button class="nav-item active" id="nav-view-items" onclick="router('view-items')">🛒 Catálogo de Ítems</button>
+    <button class="nav-item active" id="nav-view-home" onclick="router('view-home')">🏠 Inicio</button>
+    <button class="nav-item" id="nav-view-items" onclick="router('view-items')">🛒 Catálogo de Ítems</button>
     <button class="nav-item" id="nav-view-recipes" onclick="router('view-recipes')">👨‍🍳 Mis Recetas</button>
     <button class="nav-item" id="nav-view-compras" onclick="router('view-compras')">📝 Lista de Compras</button>
 </aside>
 
 <div class="container">
     
+    <!-- VISTA INICIO (DASHBOARD) -->
+    <section id="view-home" class="app-view active">
+        <h2 style="margin-top:0;">¡Hola! 👋</h2>
+        <p style="color: #64748b; margin-bottom: 25px;">Aquí tienes un resumen de tu gestión hoy.</p>
+        
+        <div class="stat-grid">
+            <div class="stat-card">
+                <span id="stat-items" class="stat-num">0</span>
+                <span class="stat-label">Ingredientes</span>
+            </div>
+            <div class="stat-card">
+                <span id="stat-recipes" class="stat-num">0</span>
+                <span class="stat-label">Recetas</span>
+            </div>
+        </div>
+
+        <h3 style="font-size: 0.9rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 15px;">Acciones Rápidas</h3>
+        
+        <button class="quick-action" onclick="router('view-items')">
+            <span style="font-size: 1.5rem;">➕</span>
+            <div>
+                <b style="display:block;">Agregar Ingrediente</b>
+                <small style="color:#94a3b8;">Registra nuevos ítems en tu catálogo.</small>
+            </div>
+        </button>
+
+        <button class="quick-action" onclick="router('view-recipes')">
+            <span style="font-size: 1.5rem;">🥗</span>
+            <div>
+                <b style="display:block;">Crear Nueva Receta</b>
+                <small style="color:#94a3b8;">Combina ingredientes y porciones.</small>
+            </div>
+        </button>
+
+        <button class="quick-action" onclick="router('view-compras')">
+            <span style="font-size: 1.5rem;">🛒</span>
+            <div>
+                <b style="display:block;">Ir al Súper</b>
+                <small style="color:#94a3b8;">Genera tu lista y registra precios.</small>
+            </div>
+        </button>
+    </section>
+
     <!-- VISTA 1: CATÁLOGO -->
-    <section id="view-items" class="app-view active">
+    <section id="view-items" class="app-view">
         <div class="card">
             <h2>Nuevo Ingrediente</h2>
             <form id="form-ingrediente">
@@ -149,31 +193,43 @@
 </div>
 
 <script>
-    const db = new Dexie("GastroCost_V3_2");
+    // 1. DATABASE SETUP
+    const db = new Dexie("GastroCost_V4");
     db.version(1).stores({ ingredients: "uid, name, category, unit", recipes: "++id, title", meta: "uid" });
 
     let tempIngs = [];
 
-    // LÓGICA DE MENÚ (Drawer)
+    // 2. MENU & ROUTER
     function toggleMenu() {
         document.getElementById('drawer').classList.toggle('open');
         document.getElementById('backdrop').classList.toggle('active');
     }
 
-    function router(viewId) {
+    async function router(viewId) {
         document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
         document.getElementById(viewId).classList.add('active');
-        document.getElementById('nav-' + viewId).classList.add('active');
+        const navBtn = document.getElementById('nav-' + viewId);
+        if(navBtn) navBtn.classList.add('active');
         
+        if(viewId === 'view-home') updateStats();
         if(viewId === 'view-recipes') populateIngs();
         if(viewId === 'view-compras') populateRecs();
         
-        toggleMenu(); // Cerrar menú tras elegir
+        const drawer = document.getElementById('drawer');
+        if(drawer.classList.contains('open')) toggleMenu();
         render();
     }
 
-    // RUI Y AYUDA
+    // 3. DASHBOARD STATS
+    async function updateStats() {
+        const iCount = await db.ingredients.count();
+        const rCount = await db.recipes.count();
+        document.getElementById('stat-items').textContent = iCount;
+        document.getElementById('stat-recipes').textContent = rCount;
+    }
+
+    // 4. CORE LOGIC (RUI, RECIPES, SHOPPING)
     function updateHelp() {
         const sel = document.getElementById('ing-category');
         document.getElementById('help-cat').textContent = "Ejemplos: " + sel.options[sel.selectedIndex].getAttribute('data-help');
@@ -192,7 +248,6 @@
         e.target.reset(); updateHelp(); render();
     });
 
-    // RECETAS
     async function populateIngs() {
         const ings = await db.ingredients.toArray();
         document.getElementById('rec-sel-ing').innerHTML = ings.map(i => `<option value="${i.uid}">${i.name} (${i.unit})</option>`).join('');
@@ -217,7 +272,6 @@
         tempIngs = []; e.target.reset(); renderTemp(); render();
     });
 
-    // COMPRAS
     async function populateRecs() {
         const recs = await db.recipes.toArray();
         document.getElementById('selector-compras').innerHTML = recs.map(r => `<label style="display:block; margin-bottom:8px;"><input type="checkbox" value="${r.id}" class="r-check"> ${r.title}</label>`).join('');
@@ -248,9 +302,10 @@
         document.getElementById('lista-ingredientes').innerHTML = ings.map(i => `<div class="card" style="padding:10px; margin-bottom:8px; display:flex; justify-content:space-between;"><span><b>${i.name}</b> (${i.unit})</span> <button onclick="db.ingredients.delete('${i.uid}').then(render)" style="background:none; border:none; color:var(--danger);">✕</button></div>`).join('');
         const recs = await db.recipes.toArray();
         document.getElementById('lista-recetas').innerHTML = recs.map(r => `<div class="card" style="padding:10px; margin-bottom:8px; display:flex; justify-content:space-between;"><span><b>${r.title}</b></span> <button onclick="db.recipes.delete(${r.id}).then(render)" style="background:none; border:none; color:var(--danger);">✕</button></div>`).join('');
-        document.getElementById('db-status').textContent = `${ings.length} Ítems / ${recs.length} Recetas`;
     }
 
+    // INIT
+    updateStats();
     updateHelp();
     render();
 </script>
